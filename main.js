@@ -103,6 +103,7 @@ const showWindow = (params = {}) => {
     if (params.ignoreStartupHide !== "false") startupHideCancelled = true;
     showWindows();
   },
+  hideLeftSidebar = () => plugin.app.workspace.leftSplit.collapse(),
   onSecondInstance = () => showWindows(),
   onWindowClose = (event) => event.preventDefault(),
   onWindowUnload = (event) => {
@@ -311,6 +312,7 @@ const registerUriHandlers = () => {
   log(LOG_REGISTER_URI_HANDLER);
   plugin.registerObsidianProtocolHandler("tray-extended/toggleWindows", toggleWindows);
   plugin.registerObsidianProtocolHandler("tray-extended/showWindow", showWindow);
+  plugin.registerObsidianProtocolHandler("tray-extended/hideLeftSidebar", hideLeftSidebar);
 };
 
 const OPTIONS = [
