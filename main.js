@@ -196,7 +196,12 @@ class TemplateConfirmModal extends obsidian.Modal {
 }
 
 const addQuickNote = async () => {
-    const { quickNoteLocation, quickNoteDateFormat, quickNoteTemplate } = plugin.settings,
+    const {
+        quickNoteLocation,
+        quickNoteDateFormat,
+        quickNoteTemplate,
+        quickNoteTemplateMode,
+      } = plugin.settings,
       pattern = quickNoteDateFormat || DEFAULT_DATE_FORMAT,
       date = obsidian.moment().format(pattern),
       name = obsidian
@@ -210,11 +215,19 @@ const addQuickNote = async () => {
       leaf = plugin.app.workspace.getLeaf(),
       root = plugin.app.fileManager.getNewFileParent(""),
       openMode = { active: true, state: { mode: "source" } };
-    let content = "";
-    if (quickNoteTemplate) {
-      const applyTemplate = await new Promise((resolve) => {
-        new TemplateConfirmModal(plugin.app, () => resolve(true), () => resolve(false)).open();
-      });
+    let content = "",
+      applyTemplate = false;
+    if (quickNoteTemplate && quickNoteTemplateMode !== "never") {
+      applyTemplate =
+        quickNoteTemplateMode === "always"
+          ? true
+          : await new Promise((resolve) => {
+              new TemplateConfirmModal(
+                plugin.app,
+                () => resolve(true),
+                () => resolve(false)
+              ).open();
+            });
       if (applyTemplate) {
         const template = plugin.app.vault.getAbstractFileByPath(
           obsidian.normalizePath(quickNoteTemplate)
@@ -228,7 +241,20 @@ const addQuickNote = async () => {
     }
     plugin.app.fileManager
       .createNewMarkdownFile(root, name, content)
-      .then((file) => leaf.openFile(file, openMode));
+      .then(async (file) => {
+        await leaf.openFile(file, openMode);
+        if (content) {
+          // template fills the note: place the cursor at the very
+          // end so the user can start typing immediately.
+          const editor = leaf.view?.editor;
+          const lastLine = editor?.lastLine();
+          if (editor && lastLine != null)
+            editor.setCursor({ line: lastLine, ch: editor.getLine(lastLine).length });
+        } else {
+          // empty note: focus the editor directly.
+          leaf.view?.editor?.focus();
+        }
+      });
     showWindows();
   },
   replaceVaultName = (str) => {
@@ -421,12 +447,23 @@ const OPTIONS = [
   {
     key: "quickNoteTemplate",
     desc: `
-      Optional vault-relative Markdown template. Each quick note will ask whether to
-      apply it. <a href="https://github.com/SilentVoid13/Templater" target="_blank" rel="noopener">
+      Optional vault-relative Markdown template.
+      <a href="https://github.com/SilentVoid13/Templater" target="_blank" rel="noopener">
       Templater</a> can process its expressions after the note is created.
     `,
     type: "text",
     placeholder: "Example: templates/quick-note.md",
+  },
+  {
+    key: "quickNoteTemplateMode",
+    desc: "Controls whether the configured template is applied to new quick notes.",
+    type: "dropdown",
+    options: {
+      Ask each time: "ask",
+      Always apply: "always",
+      Never apply: "never",
+    },
+    default: "ask",
   },
   {
     key: "quickNoteHotkey",
