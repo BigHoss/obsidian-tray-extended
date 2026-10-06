@@ -38,6 +38,7 @@ Tray-Extended registers these URI handlers:
 | `obsidian://tray-extended/showWindow` | Ensures the vault window is visible and focused. It also cancels the one-time startup hide so the window remains visible during launch. |
 | `obsidian://tray-extended/showWindow?ignoreStartupHide=false` | Ensures the vault window is visible but permits a pending startup hide to run. |
 | `obsidian://tray-extended/hideLeftSidebar` | Collapses the left workspace sidebar. Safe to call repeatedly. |
+| `obsidian://tray-extended/moveWindowToPrimaryDisplay` | Shows each vault window on the primary display. Normal windows retain their size when it fits, or are reduced to the primary work area; maximized windows remain maximized. |
 
 On Linux Wayland desktop environments, bind a system shortcut with
 `xdg-open obsidian://tray-extended/showWindow`.

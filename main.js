@@ -43,7 +43,7 @@ let tray, plugin, startupHideCancelled = false;
 const obsidian = require("obsidian"),
   { app, Tray, Menu } = require("electron").remote,
   { nativeImage, BrowserWindow } = require("electron").remote,
-  { getCurrentWindow, globalShortcut } = require("electron").remote;
+  { getCurrentWindow, globalShortcut, screen } = require("electron").remote;
 
 const vaultWindows = new Set(),
   maximizedWindows = new Set(),
@@ -104,6 +104,28 @@ const showWindow = (params = {}) => {
     showWindows();
   },
   hideLeftSidebar = () => plugin.app.workspace.leftSplit.collapse(),
+  moveWindowToPrimaryDisplay = () => {
+    const { x, y, width: workAreaWidth, height: workAreaHeight } = screen
+      .getPrimaryDisplay()
+      .workArea;
+    getWindows().forEach((win) => {
+      const wasMaximized = win.isMaximized(),
+        wasMinimized = win.isMinimized(),
+        { width, height } = win.getBounds(),
+        nextWidth = Math.min(width, workAreaWidth),
+        nextHeight = Math.min(height, workAreaHeight);
+      if (wasMaximized) win.unmaximize();
+      if (wasMinimized) win.restore();
+      win.setBounds({
+        x: x + Math.round((workAreaWidth - nextWidth) / 2),
+        y: y + Math.round((workAreaHeight - nextHeight) / 2),
+        width: nextWidth,
+        height: nextHeight,
+      });
+      if (wasMaximized) win.maximize();
+      else win.show();
+    });
+  },
   onSecondInstance = () => showWindows(),
   onWindowClose = (event) => event.preventDefault(),
   onWindowUnload = (event) => {
@@ -313,6 +335,10 @@ const registerUriHandlers = () => {
   plugin.registerObsidianProtocolHandler("tray-extended/toggleWindows", toggleWindows);
   plugin.registerObsidianProtocolHandler("tray-extended/showWindow", showWindow);
   plugin.registerObsidianProtocolHandler("tray-extended/hideLeftSidebar", hideLeftSidebar);
+  plugin.registerObsidianProtocolHandler(
+    "tray-extended/moveWindowToPrimaryDisplay",
+    moveWindowToPrimaryDisplay
+  );
 };
 
 const OPTIONS = [
