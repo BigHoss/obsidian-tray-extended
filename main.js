@@ -16,6 +16,7 @@ const LOG_PREFIX = "obsidian-tray",
   LOG_REGISTER_HOTKEY = "registering hotkey",
   LOG_UNREGISTER_HOTKEY = "unregistering hotkey",
   LOG_REGISTER_URI_HANDLER = "registering URI handler",
+  LEGACY_PLUGIN_ID = "tray",
   ACTION_QUICK_NOTE = "Quick Note",
   ACTION_SHOW = "Show Vault",
   ACTION_HIDE = "Hide Vault",
@@ -38,7 +39,7 @@ const LOG_PREFIX = "obsidian-tray",
   OBSIDIAN_BASE64_ICON = `data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAHZSURBVDhPlZKxTxRBFMa/XZcF7nIG7mjxjoRCwomJxgsFdhaASqzQxFDzB1AQKgstLGxIiBQGJBpiCCGx8h+wgYaGgAWNd0dyHofeEYVwt/PmOTMZV9aDIL/s5pvZvPfN9yaL/+HR3eXcypta0m4juFbP5GHuXc9IbunDFc9db/G81/ZzhDMN7g8td47mll4R5BfHwZN4LOaA+fHa259PbUmIYzWkt3e2NZNo3/V9v1vvU6kkstk+tLW3ItUVr/m+c3N8MlkwxYqmBFcbwUQQCNOcyVzDwEAWjuPi5DhAMV/tKOYPX5hCyz8Gz1zX5SmWjBvZfmTSaRBJkGAIoxJHv+pVW2yIGNxOJ8bUVNcFEWLxuG1ia6JercTbttwQTeDwPS0kCMXiXtgk/jQrFUw7ptYSMWApF40yo/ytjHq98fdk3ayVE+cn2CxMb6ruz9qAJKFUKoWza1VJSi/n0+ffgYHdWW2gHuxXymg0gjCB0sjpmiaDnkL3RzDyzLqBUKns2ztQqUR0fk2TwSrGSf1eczqF5vsPZRCQSSAFLk6gqctgQRkc6TWRQLV2YMYQki9OoNkqzFQ9r+WOGuW5CrJbOzyAlPKr6MSGLbkcDwbf35oY/jRkt6cAfgNwowruAMz9AgAAAABJRU5ErkJggg==`,
   log = (message) => console.log(`${LOG_PREFIX}: ${message}`);
 
-let tray, plugin;
+let tray, plugin, startupHideCancelled = false;
 const obsidian = require("obsidian"),
   { app, Tray, Menu } = require("electron").remote,
   { nativeImage, BrowserWindow } = require("electron").remote,
@@ -98,7 +99,12 @@ const vaultWindows = new Set(),
     else showWindows();
   };
 
-const onSecondInstance = () => showWindows(),
+const showWindow = (params = {}) => {
+    if (params.ignoreStartupHide !== "false") startupHideCancelled = true;
+    showWindows();
+  },
+  hideLeftSidebar = () => plugin.app.workspace.leftSplit.collapse(),
+  onSecondInstance = () => showWindows(),
   onWindowClose = (event) => event.preventDefault(),
   onWindowUnload = (event) => {
     log(LOG_WINDOW_CLOSE);
@@ -190,7 +196,12 @@ class TemplateConfirmModal extends obsidian.Modal {
 }
 
 const addQuickNote = async () => {
-    const { quickNoteLocation, quickNoteDateFormat, quickNoteTemplate } = plugin.settings,
+    const {
+        quickNoteLocation,
+        quickNoteDateFormat,
+        quickNoteTemplate,
+        quickNoteTemplateMode,
+      } = plugin.settings,
       pattern = quickNoteDateFormat || DEFAULT_DATE_FORMAT,
       date = obsidian.moment().format(pattern),
       name = obsidian
@@ -204,11 +215,19 @@ const addQuickNote = async () => {
       leaf = plugin.app.workspace.getLeaf(),
       root = plugin.app.fileManager.getNewFileParent(""),
       openMode = { active: true, state: { mode: "source" } };
-    let content = "";
-    if (quickNoteTemplate) {
-      const applyTemplate = await new Promise((resolve) => {
-        new TemplateConfirmModal(plugin.app, () => resolve(true), () => resolve(false)).open();
-      });
+    let content = "",
+      applyTemplate = false;
+    if (quickNoteTemplate && quickNoteTemplateMode !== "never") {
+      applyTemplate =
+        quickNoteTemplateMode === "always"
+          ? true
+          : await new Promise((resolve) => {
+              new TemplateConfirmModal(
+                plugin.app,
+                () => resolve(true),
+                () => resolve(false)
+              ).open();
+            });
       if (applyTemplate) {
         const template = plugin.app.vault.getAbstractFileByPath(
           obsidian.normalizePath(quickNoteTemplate)
@@ -222,7 +241,20 @@ const addQuickNote = async () => {
     }
     plugin.app.fileManager
       .createNewMarkdownFile(root, name, content)
-      .then((file) => leaf.openFile(file, openMode));
+      .then(async (file) => {
+        await leaf.openFile(file, openMode);
+        if (content) {
+          // template fills the note: place the cursor at the very
+          // end so the user can start typing immediately.
+          const editor = leaf.view?.editor;
+          const lastLine = editor?.lastLine();
+          if (editor && lastLine != null)
+            editor.setCursor({ line: lastLine, ch: editor.getLine(lastLine).length });
+        } else {
+          // empty note: focus the editor directly.
+          leaf.view?.editor?.focus();
+        }
+      });
     showWindows();
   },
   replaceVaultName = (str) => {
@@ -276,15 +308,23 @@ const addQuickNote = async () => {
 
 const registerHotkeys = () => {
     log(LOG_REGISTER_HOTKEY);
-    try {
-      const { toggleWindowFocusHotkey, quickNoteHotkey } = plugin.settings;
-      if (toggleWindowFocusHotkey) {
-        globalShortcut.register(toggleWindowFocusHotkey, toggleWindows);
+    const { toggleWindowFocusHotkey, quickNoteHotkey } = plugin.settings,
+      hotkeys = [
+        [toggleWindowFocusHotkey, toggleWindows],
+        [quickNoteHotkey, addQuickNote],
+      ];
+    hotkeys.forEach(([accelerator, callback]) => {
+      if (!accelerator) return;
+      try {
+        if (!globalShortcut.register(accelerator, callback)) {
+          new obsidian.Notice(`Global hotkey unavailable: ${accelerator}`);
+          console.warn(`${LOG_PREFIX}: global hotkey unavailable: ${accelerator}`);
+        }
+      } catch (error) {
+        new obsidian.Notice(`Invalid global hotkey: ${accelerator}`);
+        console.error(`${LOG_PREFIX}: failed to register ${accelerator}`, error);
       }
-      if (quickNoteHotkey) {
-        globalShortcut.register(quickNoteHotkey, addQuickNote);
-      }
-    } catch {}
+    });
   },
   unregisterHotkeys = () => {
     log(LOG_UNREGISTER_HOTKEY);
@@ -297,6 +337,8 @@ const registerHotkeys = () => {
 const registerUriHandlers = () => {
   log(LOG_REGISTER_URI_HANDLER);
   plugin.registerObsidianProtocolHandler("tray-extended/toggleWindows", toggleWindows);
+  plugin.registerObsidianProtocolHandler("tray-extended/showWindow", showWindow);
+  plugin.registerObsidianProtocolHandler("tray-extended/hideLeftSidebar", hideLeftSidebar);
 };
 
 const OPTIONS = [
@@ -405,12 +447,23 @@ const OPTIONS = [
   {
     key: "quickNoteTemplate",
     desc: `
-      Optional vault-relative Markdown template. Each quick note will ask whether to
-      apply it. <a href="https://github.com/SilentVoid13/Templater" target="_blank" rel="noopener">
+      Optional vault-relative Markdown template.
+      <a href="https://github.com/SilentVoid13/Templater" target="_blank" rel="noopener">
       Templater</a> can process its expressions after the note is created.
     `,
     type: "text",
     placeholder: "Example: templates/quick-note.md",
+  },
+  {
+    key: "quickNoteTemplateMode",
+    desc: "Controls whether the configured template is applied to new quick notes.",
+    type: "dropdown",
+    options: {
+      Ask each time: "ask",
+      Always apply: "always",
+      Never apply: "never",
+    },
+    default: "ask",
   },
   {
     key: "quickNoteHotkey",
@@ -521,6 +574,11 @@ class TrayPlugin extends obsidian.Plugin {
     const { settings } = this;
 
     plugin = this;
+    if (this.app.plugins.enabledPlugins.has(LEGACY_PLUGIN_ID)) {
+      new obsidian.Notice(
+        "Tray-Extended: disable the legacy Tray plugin to restore global hotkeys."
+      );
+    }
     createTrayIcon();
     registerHotkeys();
     registerUriHandlers();
@@ -530,7 +588,9 @@ class TrayPlugin extends obsidian.Plugin {
     if (settings.runInBackground) interceptWindowClose();
     if (settings.hideTaskbarIcon) hideTaskbarIcons();
     if (settings.hideOnLaunch) {
-      this.registerEvent(this.app.workspace.onLayoutReady(hideWindows));
+      this.registerEvent(this.app.workspace.onLayoutReady(() => {
+        if (!startupHideCancelled) hideWindows();
+      }));
     }
 
     // add as command: can be called from command palette

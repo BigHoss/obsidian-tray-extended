@@ -66,16 +66,29 @@ jobs:
         run: git pull --ff-only origin main
 
       - name: Create GitHub release
+        id: release
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.gitversion.outputs.majorMinorPatch }}
           target_commitish: main
           name: ${{ steps.gitversion.outputs.majorMinorPatch }}
+          draft: true
           generate_release_notes: true
           fail_on_unmatched_files: true
           files: |
             main.js
             manifest.json
+
+      - name: Publish GitHub release
+        uses: actions/github-script@v8
+        with:
+          script: |
+            await github.rest.repos.updateRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: ${{ steps.release.outputs.id }},
+              draft: false,
+            });
 
       - name: Attest release assets
         uses: actions/attest@v4

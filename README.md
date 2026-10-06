@@ -24,11 +24,23 @@ The `Relaunch Obsidian` and `Close Vault` actions can be triggered from the tray
 or with the in-app command palette (search for "Tray: Relaunch Obsidian" or "Tray: Close Vault").
 Hotkeys can be assigned to the commands via Obsidian's built-in hotkey manager.
 
+If a global hotkey is unavailable, Tray-Extended shows a notice when it starts. A shortcut can only
+be registered by one application at a time. After migrating from the legacy `Tray` plugin, disable it
+before enabling `Tray-Extended` so it cannot retain the same global hotkeys.
+
 ### URI shortcut
 
-Tray-Extended registers `obsidian://tray-extended/toggleWindows`, which toggles vault-window
-visibility. On Linux Wayland desktop environments, bind it to a system shortcut with
-`xdg-open obsidian://tray-extended/toggleWindows`.
+Tray-Extended registers these URI handlers:
+
+| URI | Behavior |
+| --- | --- |
+| `obsidian://tray-extended/toggleWindows` | Toggles vault-window visibility. |
+| `obsidian://tray-extended/showWindow` | Ensures the vault window is visible and focused. It also cancels the one-time startup hide so the window remains visible during launch. |
+| `obsidian://tray-extended/showWindow?ignoreStartupHide=false` | Ensures the vault window is visible but permits a pending startup hide to run. |
+| `obsidian://tray-extended/hideLeftSidebar` | Collapses the left workspace sidebar. Safe to call repeatedly. |
+
+On Linux Wayland desktop environments, bind a system shortcut with
+`xdg-open obsidian://tray-extended/showWindow`.
 
 ### Quick notes
 
@@ -36,12 +48,23 @@ visibility. On Linux Wayland desktop environments, bind it to a system shortcut 
 | ---------------------- | -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------| ---------------------------- |
 | Quick note location    | New quick notes will be placed in this folder.                                                                                                                                                                         |                              |
 | Quick note date format | New quick notes will use a filename of this pattern. Format: [Moment.js format string](https://momentjs.com/docs/#/displaying/format/)                                                                                 | `YYYY-MM-DD`                 |
-| Quick note template    | Optional vault-relative Markdown file. The field suggests notes in the vault; when configured, each quick note asks whether to copy its contents.                                                                        |                              |
+| Quick note template    | Optional vault-relative Markdown file. The field suggests notes in the vault; combined with the template mode it controls how the template is applied.                                                                |                              |
+| Quick note template mode | Controls how the configured template is applied: `Ask each time` (default), `Always apply`, or `Never apply`.                                                                                                                  | `Ask each time`              |
 | Quick note hotkey      | This hotkey is registered globally and will be detected even if Obsidian does not have keyboard focus. Format: [Electron accelerator](https://www.electronjs.org/docs/latest/tutorial/keyboard-shortcuts#accelerators) | <kbd>CmdOrCtrl+Shift+Q</kbd> |
 
 The template is copied as-is. To use dynamic template expressions, install
 [Templater](https://github.com/SilentVoid13/Templater) and enable its trigger for new
 file creation.
+
+### Beta testing with BRAT
+
+BRAT installs GitHub release assets rather than branch contents. Every push outside `main` starts
+the **Beta Release** workflow, which waits for approval before publishing a prerelease containing
+`main.js` and `manifest.json`. Configure the one-time approval gate in **GitHub → Settings →
+Environments → beta-release** by adding yourself as a required reviewer. A manual run can supply
+a custom prerelease version such as `1.0.11-beta.0`; otherwise it derives one from `manifest.json`
+and the Actions run number. Add the repository to BRAT and select that prerelease. The normal
+release workflow only publishes from `main`.
 
 ## Installation
 
