@@ -4,7 +4,7 @@
   "author": "BigHoss",
   "authorUrl": "https://github.com/BigHoss",
   "description": "Manage the system tray, window visibility, global hotkeys, and quick notes.",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "isDesktopOnly": true,
   "minAppVersion": "1.0.0"
 }
