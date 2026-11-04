@@ -90,23 +90,6 @@ release workflow only publishes from `main`.
 7. Configure the plugin as you wish.
 8. You're done! 🎉
 
-## Development
-
-Run the checks locally with:
-
-```sh
-node --check main.js   # syntax check
-node --test            # all tests in test/
-```
-
-Pipelines in `.github/workflows`:
-
-| Workflow    | Trigger                          | What it does                                                          |
-| ----------- | -------------------------------- | --------------------------------------------------------------------- |
-| CI          | every push, every pull request   | syntax check and the test suite                                        |
-| Release     | merge to `main`                  | publishes the release assets, only after those checks have passed     |
-| Beta Release| manual (`workflow_dispatch`)     | publishes a prerelease for manual testing                              |
-
 ## Disclaimer
 
 This plugin is provided as-is and is designed for personal use. It has not

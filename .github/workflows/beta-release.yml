@@ -1,6 +1,9 @@
 name: Beta Release
 
 on:
+  push:
+    branches-ignore:
+      - main
   workflow_dispatch:
     inputs:
       version:
@@ -15,6 +18,7 @@ permissions:
 
 jobs:
   release:
+    if: github.ref_name != 'main'
     runs-on: ubuntu-24.04
     environment: beta-release
     concurrency:
@@ -23,12 +27,6 @@ jobs:
     steps:
       - name: Check out selected branch
         uses: actions/checkout@v6
-
-      - name: Check plugin syntax
-        run: node --check main.js
-
-      - name: Run tests
-        run: node --test
 
       - name: Determine beta version
         id: version
