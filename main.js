@@ -243,16 +243,17 @@ const addQuickNote = async () => {
       .createNewMarkdownFile(root, name, content)
       .then(async (file) => {
         await leaf.openFile(file, openMode);
+        const editor = leaf.view?.editor;
+        if (!editor) return;
+        // focus the editor so the user can type right away,
+        // whether or not a template was applied.
+        editor.focus();
         if (content) {
           // template fills the note: place the cursor at the very
           // end so the user can start typing immediately.
-          const editor = leaf.view?.editor;
-          const lastLine = editor?.lastLine();
-          if (editor && lastLine != null)
+          const lastLine = editor.lastLine();
+          if (lastLine != null)
             editor.setCursor({ line: lastLine, ch: editor.getLine(lastLine).length });
-        } else {
-          // empty note: focus the editor directly.
-          leaf.view?.editor?.focus();
         }
       });
     showWindows();
@@ -459,9 +460,9 @@ const OPTIONS = [
     desc: "Controls whether the configured template is applied to new quick notes.",
     type: "dropdown",
     options: {
-      Ask each time: "ask",
-      Always apply: "always",
-      Never apply: "never",
+      "Ask each time": "ask",
+      "Always apply": "always",
+      "Never apply": "never",
     },
     default: "ask",
   },
@@ -538,6 +539,13 @@ class SettingsTab extends obsidian.PluginSettingTab {
               .setDefaultFormat(opt.default ?? "")
               .setValue(value)
               .onChange(onChange);
+          });
+        } else if (opt.type === "dropdown") {
+          setting.addDropdown((dropdown) => {
+            Object.entries(opt.options).forEach(([label, optionValue]) =>
+              dropdown.addOption(optionValue, label)
+            );
+            dropdown.setValue(value).onChange(onChange);
           });
         } else {
           const previewEl = setting.descEl.querySelector("[data-preview]"),
