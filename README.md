@@ -105,8 +105,14 @@ Pipelines in `.github/workflows`:
 | Workflow    | Trigger                          | What it does                                                          |
 | ----------- | -------------------------------- | --------------------------------------------------------------------- |
 | CI          | every push, every pull request   | syntax check and the test suite                                        |
-| Release     | merge to `main`                  | opens the version bump pull request, publishes the release once it is merged |
+| Release     | merge to `main`                  | publishes the release for the version in `manifest.json`              |
 | Beta Release| manual (`workflow_dispatch`)     | publishes a prerelease for manual testing                              |
+
+`main` is only updated through pull requests, so the release workflow never
+writes to it. The version in `manifest.json` is the version to release: bump it
+in the pull request that carries the change and the release is published from
+that merge. If the version was already released, the run reports it and
+publishes nothing.
 
 ## Disclaimer
 

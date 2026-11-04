@@ -8,7 +8,6 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
   attestations: write
   id-token: write
 
@@ -31,65 +30,38 @@ jobs:
       - name: Run tests
         run: node --test
 
-      - name: Install GitVersion
-        uses: gittools/actions/gitversion/setup@v4.7.0
-        with:
-          versionSpec: '6.8.x'
-
-      - name: Determine version
-        id: gitversion
-        uses: gittools/actions/gitversion/execute@v4.7.0
-
-      # main is only updated through pull requests, so the version bump
-      # travels as a pull request and the release is published once it is
-      # merged and the manifest carries the release version.
-      - name: Check whether the version bump has landed
-        id: state
-        env:
-          VERSION: ${{ steps.gitversion.outputs.majorMinorPatch }}
+      # main is only updated through pull requests and the ruleset requires
+      # code scanning results before a commit may be pushed to it, so the
+      # workflow never writes to main. The version in manifest.json is the
+      # version to release: bump it in the pull request that carries the
+      # change and the release is published from that merge.
+      - name: Read the release version
+        id: version
         run: |
-          CURRENT=$(node -p "require('./manifest.json').version")
-          echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
-          if [ "$CURRENT" = "$VERSION" ]; then
-            echo "publish=true" >> "$GITHUB_OUTPUT"
+          VERSION=$(node -p "require('./manifest.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if git rev-parse -q --verify "refs/tags/$VERSION" >/dev/null; then
+            echo "released=true" >> "$GITHUB_OUTPUT"
           else
-            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "released=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Open the version bump pull request
-        if: steps.state.outputs.publish == 'false'
-        env:
-          VERSION: ${{ steps.gitversion.outputs.majorMinorPatch }}
-          GH_TOKEN: ${{ github.token }}
+      - name: Report that the version was already released
+        if: steps.version.outputs.released == 'true'
         run: |
-          BRANCH="chore/release-v${VERSION}"
-          if [ "$(gh pr list --head "$BRANCH" --state open --json number --jq 'length')" != "0" ]; then
-            echo "::notice::a pull request for $BRANCH is already open"
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout -b "$BRANCH"
-          VERSION="$VERSION" node --input-type=module -e '
-            import { readFile, writeFile } from "node:fs/promises";
-            const path = "manifest.json";
-            const manifest = JSON.parse(await readFile(path, "utf8"));
-            manifest.version = process.env.VERSION;
-            await writeFile(path, `${JSON.stringify(manifest, null, 2)}\n`);
-          '
-          git commit -am "chore(release): v${VERSION}"
-          git push origin "$BRANCH"
-          gh pr create --base main --head "$BRANCH" --title "chore(release): v${VERSION}" --body "Bumps \`manifest.json\` to v${VERSION}. The release workflow publishes the release once this pull request is merged."
-          gh pr merge --auto --squash "$BRANCH"
+          {
+            echo "::warning title=No release published::manifest.json still carries v${{ steps.version.outputs.version }}, which was released already. Bump the version in manifest.json to publish this merge."
+            echo "Latest tag: $(git tag --sort=-v:refname | head -1)"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Create GitHub release
-        if: steps.state.outputs.publish == 'true'
+        if: steps.version.outputs.released == 'false'
         id: release
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: ${{ steps.gitversion.outputs.majorMinorPatch }}
+          tag_name: ${{ steps.version.outputs.version }}
           target_commitish: main
-          name: ${{ steps.gitversion.outputs.majorMinorPatch }}
+          name: ${{ steps.version.outputs.version }}
           draft: true
           generate_release_notes: true
           fail_on_unmatched_files: true
@@ -98,7 +70,7 @@ jobs:
             manifest.json
 
       - name: Publish GitHub release
-        if: steps.state.outputs.publish == 'true'
+        if: steps.version.outputs.released == 'false'
         uses: actions/github-script@v8
         with:
           script: |
@@ -110,7 +82,7 @@ jobs:
             });
 
       - name: Attest release assets
-        if: steps.state.outputs.publish == 'true'
+        if: steps.version.outputs.released == 'false'
         uses: actions/attest@v4
         with:
           subject-path: |
