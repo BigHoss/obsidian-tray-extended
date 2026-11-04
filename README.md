@@ -58,13 +58,14 @@ file creation.
 
 ### Beta testing with BRAT
 
-BRAT installs GitHub release assets rather than branch contents. Every push outside `main` starts
-the **Beta Release** workflow, which waits for approval before publishing a prerelease containing
-`main.js` and `manifest.json`. Configure the one-time approval gate in **GitHub → Settings →
-Environments → beta-release** by adding yourself as a required reviewer. A manual run can supply
-a custom prerelease version such as `1.0.11-beta.0`; otherwise it derives one from `manifest.json`
-and the Actions run number. Add the repository to BRAT and select that prerelease. The normal
-release workflow only publishes from `main`.
+BRAT installs GitHub release assets rather than branch contents. The **Beta Release**
+workflow is manual: start it from the **Actions** tab, it waits for approval before
+publishing a prerelease containing `main.js` and `manifest.json`. Configure the one-time
+approval gate in **GitHub → Settings → Environments → beta-release** by adding yourself as
+a required reviewer. A manual run can supply a custom prerelease version such as
+`1.0.11-beta.0`; otherwise it derives one from `manifest.json` and the Actions run number.
+Add the repository to BRAT and select that prerelease. The normal release workflow only
+publishes from `main`.
 
 ## Installation
 
@@ -104,7 +105,7 @@ Pipelines in `.github/workflows`:
 | Workflow    | Trigger                          | What it does                                                          |
 | ----------- | -------------------------------- | --------------------------------------------------------------------- |
 | CI          | every push, every pull request   | syntax check and the test suite                                        |
-| Release     | merge to `main`                  | publishes the release assets, only after those checks have passed     |
+| Release     | merge to `main`                  | opens the version bump pull request, publishes the release once it is merged |
 | Beta Release| manual (`workflow_dispatch`)     | publishes a prerelease for manual testing                              |
 
 ## Disclaimer

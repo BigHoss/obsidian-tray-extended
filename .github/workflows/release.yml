@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
   attestations: write
   id-token: write
 
@@ -17,7 +18,6 @@ concurrency:
 
 jobs:
   release:
-    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-24.04
     steps:
       - name: Check out repository
@@ -40,38 +40,50 @@ jobs:
         id: gitversion
         uses: gittools/actions/gitversion/execute@v4.7.0
 
-      - name: Update plugin manifest
+      # main is only updated through pull requests, so the version bump
+      # travels as a pull request and the release is published once it is
+      # merged and the manifest carries the release version.
+      - name: Check whether the version bump has landed
+        id: state
         env:
           VERSION: ${{ steps.gitversion.outputs.majorMinorPatch }}
         run: |
-          node --input-type=module -e '
+          CURRENT=$(node -p "require('./manifest.json').version")
+          echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
+          if [ "$CURRENT" = "$VERSION" ]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open the version bump pull request
+        if: steps.state.outputs.publish == 'false'
+        env:
+          VERSION: ${{ steps.gitversion.outputs.majorMinorPatch }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          BRANCH="chore/release-v${VERSION}"
+          if [ "$(gh pr list --head "$BRANCH" --state open --json number --jq 'length')" != "0" ]; then
+            echo "::notice::a pull request for $BRANCH is already open"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          VERSION="$VERSION" node --input-type=module -e '
             import { readFile, writeFile } from "node:fs/promises";
             const path = "manifest.json";
             const manifest = JSON.parse(await readFile(path, "utf8"));
             manifest.version = process.env.VERSION;
             await writeFile(path, `${JSON.stringify(manifest, null, 2)}\n`);
           '
-
-      - name: Configure Git identity
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-      - name: Commit generated manifest version
-        env:
-          VERSION: ${{ steps.gitversion.outputs.majorMinorPatch }}
-        run: |
-          if git diff --quiet -- manifest.json; then
-            exit 0
-          fi
-          git add manifest.json
-          git commit -m "chore(release): v${VERSION}"
-          git push origin HEAD:main
-
-      - name: Synchronize release source
-        run: git pull --ff-only origin main
+          git commit -am "chore(release): v${VERSION}"
+          git push origin "$BRANCH"
+          gh pr create --base main --head "$BRANCH" --title "chore(release): v${VERSION}" --body "Bumps \`manifest.json\` to v${VERSION}. The release workflow publishes the release once this pull request is merged."
+          gh pr merge --auto --squash "$BRANCH"
 
       - name: Create GitHub release
+        if: steps.state.outputs.publish == 'true'
         id: release
         uses: softprops/action-gh-release@v3
         with:
@@ -86,6 +98,7 @@ jobs:
             manifest.json
 
       - name: Publish GitHub release
+        if: steps.state.outputs.publish == 'true'
         uses: actions/github-script@v8
         with:
           script: |
@@ -97,6 +110,7 @@ jobs:
             });
 
       - name: Attest release assets
+        if: steps.state.outputs.publish == 'true'
         uses: actions/attest@v4
         with:
           subject-path: |
