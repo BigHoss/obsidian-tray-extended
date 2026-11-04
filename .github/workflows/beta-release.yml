@@ -28,6 +28,9 @@ jobs:
       - name: Check out selected branch
         uses: actions/checkout@v6
 
+      - name: Verify plugin loads
+        run: node --check main.js && node test/smoke.test.js
+
       - name: Determine beta version
         id: version
         env:
