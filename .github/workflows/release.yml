@@ -25,8 +25,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Verify plugin loads
-        run: node --check main.js && node test/smoke.test.js
+      - name: Check plugin syntax
+        run: node --check main.js
+
+      - name: Run tests
+        run: node --test
 
       - name: Install GitVersion
         uses: gittools/actions/gitversion/setup@v4.7.0
