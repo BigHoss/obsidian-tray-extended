@@ -49,6 +49,8 @@ global.document = {
 const settings = [];
 const notices = [];
 const hotkeys = new Map();
+const commands = new Map();
+let trayMenu;
 
 class FakeSetting {
   constructor(containerEl) {
@@ -185,7 +187,7 @@ const obsidianStub = {
     addSettingTab(tab) {
       this.settingTab = tab;
     }
-    addCommand() {}
+    addCommand(command) { commands.set(command.id, command); }
     register() {}
     registerEvent() {}
     registerObsidianProtocolHandler() {}
@@ -257,7 +259,7 @@ const electronStub = {
       on() {}
       destroy() {}
     },
-    Menu: { buildFromTemplate: () => ({ popup() {} }) },
+    Menu: { buildFromTemplate: (items) => { trayMenu = items; return { popup() {} }; } },
     nativeImage: { createFromDataURL: () => ({}) },
     BrowserWindow: { getAllWindows: () => [] },
     getCurrentWindow: () => fakeWindow,
@@ -351,6 +353,21 @@ async function main() {
     ["ask", "always", "never"]
   );
   assert.equal(templateMode.dropdowns[0].value, "ask", "default mode is ask");
+
+  const simulate = () => trayMenu.find((item) => item.label === "Simulate screen unlock");
+  const toggle = commands.get("toggle-unlock-debug-mode").callback;
+  assert.equal(simulate(), undefined);
+  toggle();
+  plugin.settings.unlockMode = "break";
+  plugin.settings.unlockNote = "Morning.md";
+  plugin.settings.minimumLockedMinutes = 7;
+  app.workspace.layoutReady = true;
+  let simulatedDuration;
+  plugin.handleUnlock = async (now, start) => { simulatedDuration = now - start; };
+  await simulate().click();
+  assert.equal(simulatedDuration, 7 * 60000);
+  toggle();
+  assert.equal(simulate(), undefined);
 
   // a quick note with a template must focus the editor
   plugin.settings.quickNoteTemplate = "templates/quick.md";

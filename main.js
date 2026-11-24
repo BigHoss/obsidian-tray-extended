@@ -313,6 +313,18 @@ const addQuickNote = async () => {
           accelerator: plugin.settings.toggleWindowFocusHotkey,
           click: hideWindows,
         },
+        ...(plugin.unlockDebug ? [{
+          label: "Simulate screen unlock",
+          click: () => {
+            if (plugin.settings.unlockMode === "off" || !plugin.settings.unlockNote) {
+              new obsidian.Notice("Choose an unlock mode and note in Tray-Extended settings first.");
+              return;
+            }
+            const now = new Date();
+            new obsidian.Notice("Simulating a screen unlock using the current unlock rule.");
+            return plugin.dispatchUnlock(now, now - plugin.settings.minimumLockedMinutes * 60000);
+          },
+        }] : []),
         { type: "separator" },
         { label: ACTION_RELAUNCH, click: relaunchApp },
         { label: ACTION_CLOSE, click: closeVault },
@@ -648,6 +660,13 @@ class SettingsTab extends obsidian.PluginSettingTab {
 }
 
 class TrayPlugin extends obsidian.Plugin {
+  dispatchUnlock(now, lockedAt) {
+    if (this.app.workspace.layoutReady) return this.handleUnlock(now, lockedAt).catch((error) => {
+      console.error(`${LOG_PREFIX}: unlock note failed`, error);
+      new obsidian.Notice("Tray-Extended could not display the unlock note.");
+    });
+  }
+
   async handleUnlock(now = new Date(), lockedAt) {
     const { unlockMode: mode, unlockInterval: interval, unlockNote: path, unlockDisplay } = this.settings;
     if (mode === "off" || !path || this.openingUnlockNote) return;
@@ -734,10 +753,7 @@ class TrayPlugin extends obsidian.Plugin {
       const onUnlock = () => {
         const start = lockedAt;
         lockedAt = undefined;
-        if (this.app.workspace.layoutReady) this.handleUnlock(new Date(), start).catch((error) => {
-          console.error(`${LOG_PREFIX}: unlock note failed`, error);
-          new obsidian.Notice("Tray-Extended could not display the unlock note.");
-        });
+        this.dispatchUnlock(new Date(), start);
       };
       powerMonitor.on("lock-screen", onLock);
       powerMonitor.on("unlock-screen", onUnlock);
@@ -757,6 +773,17 @@ class TrayPlugin extends obsidian.Plugin {
 
     // add as command: can be called from command palette
     // and can have non-global hotkey assigned via in-app menu
+    this.addCommand({
+      id: "toggle-unlock-debug-mode",
+      name: "Toggle unlock debug mode",
+      callback: () => {
+        this.unlockDebug = !this.unlockDebug;
+        createTrayIcon();
+        new obsidian.Notice(!this.unlockDebug ? "Unlock debug mode off." :
+          settings.createTrayIcon ? "Unlock debug mode on. Choose ‘Simulate screen unlock’ in the tray menu." :
+          "Unlock debug mode on. Enable ‘Create tray icon’ to use it.");
+      },
+    });
     this.addCommand({
       id: "relaunch-app",
       name: ACTION_RELAUNCH,
