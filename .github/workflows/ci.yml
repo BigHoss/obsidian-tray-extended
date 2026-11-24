@@ -1,0 +1,24 @@
+name: CI
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Check plugin syntax
+        run: node --check main.js
+
+      - name: Run tests
+        run: node --test

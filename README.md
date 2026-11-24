@@ -64,7 +64,8 @@ Choose **Unlock after a long break** to open the note only after the screen has 
 | ---------------------- | -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------| ---------------------------- |
 | Quick note location    | New quick notes will be placed in this folder.                                                                                                                                                                         |                              |
 | Quick note date format | New quick notes will use a filename of this pattern. Format: [Moment.js format string](https://momentjs.com/docs/#/displaying/format/)                                                                                 | `YYYY-MM-DD`                 |
-| Quick note template    | Optional vault-relative Markdown file. The field suggests notes in the vault; when configured, each quick note asks whether to copy its contents.                                                                        |                              |
+| Quick note template    | Optional vault-relative Markdown file. The field suggests notes in the vault; combined with the template mode it controls how the template is applied.                                                                |                              |
+| Quick note template mode | Controls how the configured template is applied: `Ask each time` (default), `Always apply`, or `Never apply`.                                                                                                                  | `Ask each time`              |
 | Quick note hotkey      | This hotkey is registered globally and will be detected even if Obsidian does not have keyboard focus. Format: [Electron accelerator](https://www.electronjs.org/docs/latest/tutorial/keyboard-shortcuts#accelerators) | <kbd>CmdOrCtrl+Shift+Q</kbd> |
 
 The template is copied as-is. To use dynamic template expressions, install
@@ -73,13 +74,14 @@ file creation.
 
 ### Beta testing with BRAT
 
-BRAT installs GitHub release assets rather than branch contents. Every push outside `main` starts
-the **Beta Release** workflow, which waits for approval before publishing a prerelease containing
-`main.js` and `manifest.json`. Configure the one-time approval gate in **GitHub → Settings →
-Environments → beta-release** by adding yourself as a required reviewer. A manual run can supply
-a custom prerelease version such as `1.0.11-beta.0`; otherwise it derives one from `manifest.json`
-and the Actions run number. Add the repository to BRAT and select that prerelease. The normal
-release workflow only publishes from `main`.
+BRAT installs GitHub release assets rather than branch contents. The **Beta Release**
+workflow is manual: start it from the **Actions** tab, it waits for approval before
+publishing a prerelease containing `main.js` and `manifest.json`. Configure the one-time
+approval gate in **GitHub → Settings → Environments → beta-release** by adding yourself as
+a required reviewer. A manual run can supply a custom prerelease version such as
+`1.0.11-beta.0`; otherwise it derives one from `manifest.json` and the Actions run number.
+Add the repository to BRAT and select that prerelease. The normal release workflow only
+publishes from `main`.
 
 ## Installation
 
@@ -104,6 +106,23 @@ release workflow only publishes from `main`.
 6. Press the **⚙️** button beside the toggle you just used.
 7. Configure the plugin as you wish.
 8. You're done! 🎉
+
+## Development
+
+Run the checks locally with:
+
+```sh
+node --check main.js   # syntax check
+node --test            # all tests in test/
+```
+
+Pipelines in `.github/workflows`:
+
+| Workflow    | Trigger                          | What it does                                                          |
+| ----------- | -------------------------------- | --------------------------------------------------------------------- |
+| CI          | every push, every pull request   | syntax check and the test suite                                        |
+| Release     | merge to `main`                  | opens the version bump pull request, publishes the release once it is merged |
+| Beta Release| manual (`workflow_dispatch`)     | publishes a prerelease for manual testing                              |
 
 ## Disclaimer
 

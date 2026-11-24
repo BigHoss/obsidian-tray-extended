@@ -25,6 +25,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Check plugin syntax
+        run: node --check main.js
+
+      - name: Run tests
+        run: node --test
+
       - name: Install GitVersion
         uses: gittools/actions/gitversion/setup@v4.7.0
         with:
@@ -60,7 +66,11 @@ jobs:
           fi
           git add manifest.json
           git commit -m "chore(release): v${VERSION}"
-          git push origin HEAD:main
+          for attempt in 1 2 3; do
+            git push origin HEAD:main && break
+            echo "::warning::push to main failed (attempt $attempt), retrying"
+            sleep 10
+          done
 
       - name: Synchronize release source
         run: git pull --ff-only origin main
