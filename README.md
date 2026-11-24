@@ -43,6 +43,21 @@ Tray-Extended registers these URI handlers:
 On Linux Wayland desktop environments, bind a system shortcut with
 `xdg-open obsidian://tray-extended/showWindow`.
 
+### Unlock
+
+To show your morning note, choose **First unlock of the day** under **Unlock mode**, then select its vault-relative path under **Unlock note**. The feature is off by default. It responds to screen unlocks on Windows and macOS while the vault is open (including hidden in the tray). A fresh sign-in, opening Obsidian, or waking the computer without unlocking does not count.
+
+Choose the first unlock of each local **day**, **week** (Monday–Sunday), or **month**; **every unlock**; or **every Nth unlock**. For example, an interval of 3 opens the note on unlocks 3, 6, 9, and so on. Progress survives restarts and is local to this vault on this device. If the note was moved or deleted, select its new path; the plugin never creates a replacement.
+
+Choose **Unlock after a long break** to open the note only after the screen has been continuously locked for **Minimum locked minutes** (default: **60**). Short locks do not add up. The vault must stay open from lock to unlock so the plugin can measure the break.
+
+| Unlock display | What happens when the note opens |
+| --- | --- |
+| Keep current layout (default) | Bring Obsidian forward without changing window size or sidebars. |
+| Fullscreen – only Obsidian | Enter native fullscreen and collapse both sidebars. |
+| Fullscreen – with window | Maximize the normal window, keeping window controls and the current sidebars. |
+| Fullscreen – with sidebar | Enter native fullscreen, open the left sidebar, and collapse the right sidebar. |
+
 ### Quick notes
 
 | Option                 | Description                                                                                                                                                                                                            | Default                      |

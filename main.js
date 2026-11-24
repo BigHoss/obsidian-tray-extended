@@ -462,6 +462,39 @@ const OPTIONS = [
     onBeforeChange: unregisterHotkeys,
     onChange: registerHotkeys,
   },
+  "Unlock",
+  {
+    key: "unlockMode",
+    desc: "On Windows and macOS, open a note when the screen unlocks while this vault is running. Starting Obsidian does not count. Weeks start on Monday.",
+    type: "select",
+    choices: { off: "Disabled", day: "First unlock of the day", week: "First unlock of the week", month: "First unlock of the month", every: "Every unlock", nth: "Every Nth unlock", break: "Unlock after a long break" },
+    default: "off",
+  },
+  {
+    key: "unlockInterval",
+    desc: "Number of unlocks between openings. For example, 3 opens the note on unlocks 3, 6, 9…",
+    type: "number",
+    default: 3,
+  },
+  {
+    key: "minimumLockedMinutes",
+    desc: "Open the note only if the screen was continuously locked for at least this many minutes.",
+    type: "number",
+    default: 60,
+  },
+  {
+    key: "unlockNote",
+    desc: "Select an existing Markdown note in this vault.",
+    type: "text",
+    placeholder: "Example: Planning/Morning.md",
+  },
+  {
+    key: "unlockDisplay",
+    desc: "Only Obsidian hides both sidebars. With window maximizes the normal window. With sidebar opens the left sidebar in fullscreen.",
+    type: "select",
+    choices: { normal: "Keep current layout", fullscreen: "Fullscreen – only Obsidian", window: "Fullscreen – with window", sidebar: "Fullscreen – with sidebar" },
+    default: "normal",
+  },
 ];
 
 const keyToLabel = (key) =>
@@ -480,6 +513,8 @@ class SettingsTab extends obsidian.PluginSettingTab {
   display() {
     this.containerEl.empty();
     for (const opt of OPTIONS) {
+      if (opt.key === "unlockInterval" && plugin.settings.unlockMode !== "nth") continue;
+      if (opt.key === "minimumLockedMinutes" && plugin.settings.unlockMode !== "break") continue;
       const setting = new obsidian.Setting(this.containerEl);
       if (typeof opt === "string") {
         setting.setName(opt);
@@ -493,6 +528,7 @@ class SettingsTab extends obsidian.PluginSettingTab {
           plugin.settings[opt.key] = value;
           await plugin.saveSettings();
           await opt.onChange?.();
+          if (opt.key === "unlockMode") this.display();
         };
 
         const value = plugin.settings[opt.key] ?? opt.default ?? "";
@@ -500,8 +536,21 @@ class SettingsTab extends obsidian.PluginSettingTab {
           setting.addToggle((toggle) => {
             toggle.setValue(value).onChange(onChange);
           });
+        } else if (opt.type === "select") {
+          setting.addDropdown((menu) => menu.addOptions(opt.choices).setValue(value).onChange(onChange));
+        } else if (opt.type === "number") {
+          setting.addText((text) => {
+            const input = text.inputEl;
+            input.type = "number";
+            input.min = "1";
+            text.setValue(String(value));
+            input.onchange = () => {
+              if (Number.isSafeInteger(input.valueAsNumber) && input.valueAsNumber >= 1) onChange(input.valueAsNumber);
+              else text.setValue(String(plugin.settings[opt.key]));
+            };
+          });
         } else if (opt.type === "image") {
-          const previewImg = setting.descEl.querySelector("img[data-preview");
+          const previewImg = setting.descEl.querySelector("img[data-preview]");
           if (previewImg) previewImg.src = value;
           const fileUpload = setting.descEl.createEl("input");
           fileUpload.style.visibility = "hidden";
@@ -540,8 +589,8 @@ class SettingsTab extends obsidian.PluginSettingTab {
               .setPlaceholder(opt.placeholder)
               .setValue(value)
               .onChange((value) => [onChange(value), updatePreview(value)]);
-            if (opt.key === "quickNoteTemplate") {
-              const listId = "tray-extended-markdown-files",
+            if (opt.key === "quickNoteTemplate" || opt.key === "unlockNote") {
+              const listId = `tray-extended-${opt.key}-files`,
                 list = setting.controlEl.createEl("datalist", { attr: { id: listId } });
               plugin.app.vault
                 .getMarkdownFiles()
@@ -556,6 +605,68 @@ class SettingsTab extends obsidian.PluginSettingTab {
 }
 
 class TrayPlugin extends obsidian.Plugin {
+  async handleUnlock(now = new Date(), lockedAt) {
+    const { unlockMode: mode, unlockInterval: interval, unlockNote: path, unlockDisplay } = this.settings;
+    if (mode === "off" || !path || this.openingUnlockNote) return;
+    const { vault, workspace } = this.app;
+    const key = `tray-extended:${vault.adapter.getBasePath()}:unlock:${mode}`;
+    let completed;
+    if (["day", "week", "month"].includes(mode)) {
+      const start = new Date(now);
+      if (mode === "week") start.setDate(start.getDate() - (start.getDay() + 6) % 7);
+      if (mode === "month") start.setDate(1);
+      completed = start.toDateString();
+      if (localStorage.getItem(key) === completed) return;
+    } else if (mode === "nth") {
+      if (!Number.isSafeInteger(interval) || interval < 1) return;
+      const count = Number(localStorage.getItem(key)) + 1;
+      if (count < interval) {
+        localStorage.setItem(key, String(count));
+        return;
+      }
+      completed = "0";
+    } else if (mode === "break") {
+      const minutes = this.settings.minimumLockedMinutes;
+      if (lockedAt == null || !Number.isSafeInteger(minutes) || minutes < 1 || now - lockedAt < minutes * 60000) return;
+    } else if (mode !== "every") return;
+
+    const file = vault.getAbstractFileByPath(obsidian.normalizePath(path));
+    if (!(file instanceof obsidian.TFile) || file.extension !== "md") {
+      new obsidian.Notice(`Unlock note not found: ${path}`);
+      return;
+    }
+    this.openingUnlockNote = true;
+    try {
+      const existing = workspace.getLeavesOfType("markdown").find((leaf) =>
+        leaf.getRoot() === workspace.rootSplit && leaf.view.file === file);
+      let leaf = existing ?? workspace.getMostRecentLeaf(workspace.rootSplit);
+      if (leaf) workspace.setActiveLeaf(leaf);
+      if (!existing) {
+        if (!leaf || leaf.view.getViewType() !== "empty") leaf = workspace.getLeaf("tab");
+        await leaf.openFile(file, { active: true });
+      }
+      const win = getCurrentWindow();
+      startupHideCancelled = true;
+      if (win.isMinimized()) win.restore();
+      win.show();
+      win.focus();
+      if (unlockDisplay === "window") {
+        if (win.isFullScreen()) {
+          win.once("leave-full-screen", () => win.maximize());
+          win.setFullScreen(false);
+        } else win.maximize();
+      } else if (unlockDisplay === "fullscreen" || unlockDisplay === "sidebar") {
+        if (unlockDisplay === "sidebar") workspace.leftSplit.expand();
+        else workspace.leftSplit.collapse();
+        workspace.rightSplit.collapse();
+        win.setFullScreen(true);
+      }
+      if (completed !== undefined) localStorage.setItem(key, completed);
+    } finally {
+      this.openingUnlockNote = false;
+    }
+  }
+
   async onload() {
     log(LOG_LOADING);
     await this.loadSettings();
@@ -573,6 +684,25 @@ class TrayPlugin extends obsidian.Plugin {
     registerUriHandlers();
     setLaunchOnStartup();
     observeWindows();
+    if (["darwin", "win32"].includes(process.platform)) {
+      const { powerMonitor } = require("electron").remote;
+      let lockedAt;
+      const onLock = () => { lockedAt ??= Date.now(); };
+      const onUnlock = () => {
+        const start = lockedAt;
+        lockedAt = undefined;
+        if (this.app.workspace.layoutReady) this.handleUnlock(new Date(), start).catch((error) => {
+          console.error(`${LOG_PREFIX}: unlock note failed`, error);
+          new obsidian.Notice("Tray-Extended could not display the unlock note.");
+        });
+      };
+      powerMonitor.on("lock-screen", onLock);
+      powerMonitor.on("unlock-screen", onUnlock);
+      this.register(() => {
+        powerMonitor.removeListener("lock-screen", onLock);
+        powerMonitor.removeListener("unlock-screen", onUnlock);
+      });
+    }
     app.prependListener("second-instance", onSecondInstance);
     if (settings.runInBackground) interceptWindowClose();
     if (settings.hideTaskbarIcon) hideTaskbarIcons();
