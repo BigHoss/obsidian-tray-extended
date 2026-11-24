@@ -186,6 +186,7 @@ const obsidianStub = {
       this.settingTab = tab;
     }
     addCommand() {}
+    register() {}
     registerEvent() {}
     registerObsidianProtocolHandler() {}
   },
@@ -260,6 +261,7 @@ const electronStub = {
     nativeImage: { createFromDataURL: () => ({}) },
     BrowserWindow: { getAllWindows: () => [] },
     getCurrentWindow: () => fakeWindow,
+    powerMonitor: new (require("node:events").EventEmitter)(),
     globalShortcut: {
       register: (accelerator, callback) => {
         hotkeys.set(accelerator, callback);

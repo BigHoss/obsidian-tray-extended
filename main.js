@@ -504,8 +504,8 @@ const OPTIONS = [
   {
     key: "unlockMode",
     desc: "On Windows and macOS, open a note when the screen unlocks while this vault is running. Starting Obsidian does not count. Weeks start on Monday.",
-    type: "select",
-    choices: { off: "Disabled", day: "First unlock of the day", week: "First unlock of the week", month: "First unlock of the month", every: "Every unlock", nth: "Every Nth unlock", break: "Unlock after a long break" },
+    type: "dropdown",
+    options: { Disabled: "off", "First unlock of the day": "day", "First unlock of the week": "week", "First unlock of the month": "month", "Every unlock": "every", "Every Nth unlock": "nth", "Unlock after a long break": "break" },
     default: "off",
   },
   {
@@ -529,8 +529,8 @@ const OPTIONS = [
   {
     key: "unlockDisplay",
     desc: "Only Obsidian hides both sidebars. With window maximizes the normal window. With sidebar opens the left sidebar in fullscreen.",
-    type: "select",
-    choices: { normal: "Keep current layout", fullscreen: "Fullscreen – only Obsidian", window: "Fullscreen – with window", sidebar: "Fullscreen – with sidebar" },
+    type: "dropdown",
+    options: { "Keep current layout": "normal", "Fullscreen – only Obsidian": "fullscreen", "Fullscreen – with window": "window", "Fullscreen – with sidebar": "sidebar" },
     default: "normal",
   },
 ];
@@ -574,8 +574,6 @@ class SettingsTab extends obsidian.PluginSettingTab {
           setting.addToggle((toggle) => {
             toggle.setValue(value).onChange(onChange);
           });
-        } else if (opt.type === "select") {
-          setting.addDropdown((menu) => menu.addOptions(opt.choices).setValue(value).onChange(onChange));
         } else if (opt.type === "number") {
           setting.addText((text) => {
             const input = text.inputEl;
