@@ -71,6 +71,7 @@ jobs:
         with:
           tag_name: ${{ steps.version.outputs.version }}
           name: ${{ steps.version.outputs.version }}
+          body_path: release-notes.md
           draft: true
           prerelease: true
           target_commitish: ${{ github.sha }}

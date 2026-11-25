@@ -591,9 +591,14 @@ const OPTIONS = [
   },
   {
     key: "unlockDisplay",
-    desc: "Only Obsidian hides both sidebars. With window maximizes the normal window. With sidebar opens the left sidebar in fullscreen.",
+    desc: "How the vault window looks when the unlock note opens.",
     type: "dropdown",
-    options: { "Keep current layout": "normal", "Fullscreen – only Obsidian": "fullscreen", "Fullscreen – with window": "window", "Fullscreen – with sidebar": "sidebar" },
+    options: {
+      "Keep the current layout": "normal",
+      "Maximize the window": "window",
+      "Fullscreen without sidebars": "fullscreen",
+      "Fullscreen with the left sidebar": "sidebar",
+    },
     default: "normal",
   },
 ];
