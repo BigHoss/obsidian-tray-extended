@@ -583,6 +583,13 @@ const OPTIONS = [
         .map((file) => file.path),
   },
   {
+    key: "unlockTab",
+    desc: "Where the unlock note opens. A pinned tab stays in the tab bar until you close it.",
+    type: "dropdown",
+    options: { "New tab": "tab", "Pinned tab": "pinned" },
+    default: "tab",
+  },
+  {
     key: "unlockDisplay",
     desc: "Only Obsidian hides both sidebars. With window maximizes the normal window. With sidebar opens the left sidebar in fullscreen.",
     type: "dropdown",
@@ -740,12 +747,12 @@ class TrayPlugin extends obsidian.Plugin {
   dispatchUnlock(now, lockedAt, force = false) {
     if (this.app.workspace.layoutReady) return this.handleUnlock(now, lockedAt, force).catch((error) => {
       console.error(`${LOG_PREFIX}: unlock note failed`, error);
-      new obsidian.Notice("Tray-Extended could not display the unlock note.");
+      new obsidian.Notice(`Tray-Extended could not display the unlock note: ${error?.message ?? error}`);
     });
   }
 
   async handleUnlock(now = new Date(), lockedAt, force = false) {
-    const { unlockMode: mode, unlockInterval: interval, unlockNote: path, unlockDisplay } = this.settings;
+    const { unlockMode: mode, unlockInterval: interval, unlockNote: path, unlockDisplay, unlockTab } = this.settings;
     if (mode === "off" || !path || this.openingUnlockNote) return;
     const { vault, workspace } = this.app;
     const key = `tray-extended:${vault.adapter.getBasePath()}:unlock:${mode}`;
@@ -785,6 +792,7 @@ class TrayPlugin extends obsidian.Plugin {
         if (!leaf || leaf.view.getViewType() !== "empty") leaf = workspace.getLeaf("tab");
         await leaf.openFile(file, { active: true });
       }
+      if (unlockTab === "pinned" && typeof leaf.setPinned === "function") leaf.setPinned(true);
       const win = getCurrentWindow();
       startupHideCancelled = true;
       if (win.isMinimized()) win.restore();

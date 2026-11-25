@@ -88,6 +88,18 @@ test("a forced unlock ignores the daily slot and the interval counter", async ()
   assert.deepEqual(calls, ["show", "show"], "a forced unlock opens the note anyway");
 });
 
+test("the unlock note can open in a pinned tab", async () => {
+  const { plugin, calls } = vault("every");
+  plugin.settings.unlockTab = "pinned";
+  plugin.app.workspace.getLeavesOfType = () => [];
+  plugin.app.workspace.getLeaf = () => ({
+    openFile: async () => calls.push("open"),
+    setPinned: (pinned) => calls.push(`pin${pinned}`),
+  });
+  await plugin.handleUnlock();
+  assert.deepEqual(calls, ["open", "pintrue", "show"]);
+});
+
 test("opens a not-yet-open note and applies the selected window treatment", async () => {
   for (const [display, effects] of [["window", ["maximize"]], ["fullscreen", ["left-", "right-", "fullscreen"]], ["normal", []]]) {
     const { plugin, calls } = vault("every", display);

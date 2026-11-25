@@ -51,7 +51,12 @@ Choose the first unlock of each local **day**, **week** (Monday–Sunday), or **
 
 Choose **Unlock after a long break** to open the note only after the screen has been continuously locked for **Minimum locked minutes** (default: **60**). Short locks do not add up. The vault must stay open from lock to unlock so the plugin can measure the break.
 
-To test without locking your computer, run **Tray-Extended: Toggle unlock debug mode** in the command palette. With **Create tray icon** enabled, choose **Simulate screen unlock** in the tray menu. Each click uses the real unlock rule and updates its normal progress, so a daily rule that already fired today will not open the note again. Long-break mode simulates exactly the configured minimum locked time. Run the command again to remove the item; debug mode also turns off when the plugin reloads.
+To test without locking your computer, run **Tray-Extended: Toggle unlock debug mode** in the command palette. With **Create tray icon** enabled, choose **Simulate screen unlock** in the tray menu. A simulation always opens the note, even when a daily rule already fired today; it still uses the configured rule otherwise, and long-break mode simulates exactly the configured minimum locked time. Run the command again to remove the item; debug mode also turns off when the plugin reloads.
+
+| Unlock tab | Where the note opens |
+| --- | --- |
+| New tab (default) | Opens the note in a regular tab. |
+| Pinned tab | Opens the note in a tab pinned to the tab bar, so it stays there until you close it. |
 
 | Unlock display | What happens when the note opens |
 | --- | --- |
