@@ -101,7 +101,7 @@ test("the unlock note can open in a pinned tab", async () => {
 });
 
 test("opens a not-yet-open note and applies the selected window treatment", async () => {
-  for (const [display, effects] of [["window", ["maximize"]], ["fullscreen", ["left-", "right-", "fullscreen"]], ["normal", []]]) {
+  for (const [display, effects] of [["window", ["maximize"]], ["maximize-nosidebar", ["left-", "right-", "maximize"]], ["maximize-sidebar", ["left+", "right-", "maximize"]], ["fullscreen", ["left-", "right-", "fullscreen"]], ["normal", []]]) {
     const { plugin, calls } = vault("every", display);
     Object.assign(plugin.app.workspace, { getLeavesOfType: () => [], getMostRecentLeaf: () => null,
       getLeaf: () => ({ openFile: async file => { assert.equal(file.extension, "md"); calls.push("open"); } }) });

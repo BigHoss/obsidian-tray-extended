@@ -5,7 +5,7 @@ Tray-Extended can now open a note of your choice when you unlock your screen, on
 - **Unlock mode** decides when the note opens: the first unlock of the day, week (Monday to Sunday) or month, every unlock, every *n*th unlock, or only after a break of at least **Minimum locked minutes**. Progress is kept per vault and device, so a daily rule fires once per day even across restarts.
 - **Unlock note** selects the file to open. It is a native Obsidian dropdown that suggests every Markdown and canvas file in the vault.
 - **Unlock tab** decides where it opens: a regular tab, or a tab pinned to the tab bar that stays until you close it.
-- **Unlock display** decides how the window looks afterwards: keep the current layout, maximize the window, go fullscreen without sidebars, or go fullscreen with the left sidebar open.
+- **Unlock display** decides how the window looks afterwards: keep the current layout, maximize the window, maximize it without sidebars or with the left sidebar, or go fullscreen without sidebars or with the left sidebar.
 
 Canvas notes are supported, and the note path may omit the file extension or differ in case, so a copied path usually works as-is. If the note was moved or deleted, the plugin says so instead of creating a replacement.
 

@@ -596,6 +596,8 @@ const OPTIONS = [
     options: {
       "Keep the current layout": "normal",
       "Maximize the window": "window",
+      "Maximize without sidebars": "maximize-nosidebar",
+      "Maximize with the left sidebar": "maximize-sidebar",
       "Fullscreen without sidebars": "fullscreen",
       "Fullscreen with the left sidebar": "sidebar",
     },
@@ -803,7 +805,14 @@ class TrayPlugin extends obsidian.Plugin {
       if (win.isMinimized()) win.restore();
       win.show();
       win.focus();
-      if (unlockDisplay === "window") {
+      if (unlockDisplay === "maximize-nosidebar") {
+        workspace.leftSplit.collapse();
+        workspace.rightSplit.collapse();
+      } else if (unlockDisplay === "maximize-sidebar") {
+        workspace.leftSplit.expand();
+        workspace.rightSplit.collapse();
+      }
+      if (unlockDisplay === "window" || unlockDisplay === "maximize-nosidebar" || unlockDisplay === "maximize-sidebar") {
         if (win.isFullScreen()) {
           win.once("leave-full-screen", () => win.maximize());
           win.setFullScreen(false);

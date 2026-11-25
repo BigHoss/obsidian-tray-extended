@@ -61,7 +61,9 @@ To test without locking your computer, run **Tray-Extended: Toggle unlock debug 
 | Unlock display | What happens when the note opens |
 | --- | --- |
 | Keep the current layout (default) | Bring Obsidian forward without changing window size or sidebars. |
-| Maximize the window | Maximize the window, keeping window controls and the current sidebars. |
+| Maximize the window | Maximize the window, keeping window controls and the sidebars as they are. |
+| Maximize without sidebars | Maximize the window and collapse both sidebars. |
+| Maximize with the left sidebar | Maximize the window, open the left sidebar, and collapse the right sidebar. |
 | Fullscreen without sidebars | Enter native fullscreen and collapse both sidebars. |
 | Fullscreen with the left sidebar | Enter native fullscreen, open the left sidebar, and collapse the right sidebar. |
 
