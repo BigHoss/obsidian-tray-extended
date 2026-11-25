@@ -16,7 +16,6 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-24.04
-    environment: beta-release
     concurrency:
       group: beta-release-${{ github.ref_name }}
       cancel-in-progress: true

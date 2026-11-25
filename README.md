@@ -77,13 +77,11 @@ file creation.
 ### Beta testing with BRAT
 
 BRAT installs GitHub release assets rather than branch contents. The **Beta Release**
-workflow is manual: start it from the **Actions** tab, it waits for approval before
-publishing a prerelease containing `main.js` and `manifest.json`. Configure the one-time
-approval gate in **GitHub → Settings → Environments → beta-release** by adding yourself as
-a required reviewer. A manual run can supply a custom prerelease version such as
-`1.0.11-beta.0`; otherwise it derives one from `manifest.json` and the Actions run number.
-Add the repository to BRAT and select that prerelease. The normal release workflow only
-publishes from `main`.
+workflow is manual: start it from the **Actions** tab and it publishes a prerelease
+containing `main.js` and `manifest.json` without waiting for approval. A manual run can
+supply a custom prerelease version such as `1.0.11-beta.0`; otherwise it derives one from
+`manifest.json` and the Actions run number. Add the repository to BRAT and select that
+prerelease. The normal release workflow only publishes from `main`.
 
 ## Installation
 
