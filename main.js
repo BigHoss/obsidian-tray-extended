@@ -360,7 +360,7 @@ const addQuickNote = async () => {
             }
             const now = new Date();
             new obsidian.Notice("Simulating a screen unlock using the current unlock rule.");
-            return plugin.dispatchUnlock(now, now - plugin.settings.minimumLockedMinutes * 60000);
+            return plugin.dispatchUnlock(now, now - plugin.settings.minimumLockedMinutes * 60000, true);
           },
         }] : []),
         { type: "separator" },
@@ -737,14 +737,14 @@ class SettingsTab extends obsidian.PluginSettingTab {
 }
 
 class TrayPlugin extends obsidian.Plugin {
-  dispatchUnlock(now, lockedAt) {
-    if (this.app.workspace.layoutReady) return this.handleUnlock(now, lockedAt).catch((error) => {
+  dispatchUnlock(now, lockedAt, force = false) {
+    if (this.app.workspace.layoutReady) return this.handleUnlock(now, lockedAt, force).catch((error) => {
       console.error(`${LOG_PREFIX}: unlock note failed`, error);
       new obsidian.Notice("Tray-Extended could not display the unlock note.");
     });
   }
 
-  async handleUnlock(now = new Date(), lockedAt) {
+  async handleUnlock(now = new Date(), lockedAt, force = false) {
     const { unlockMode: mode, unlockInterval: interval, unlockNote: path, unlockDisplay } = this.settings;
     if (mode === "off" || !path || this.openingUnlockNote) return;
     const { vault, workspace } = this.app;
@@ -755,13 +755,15 @@ class TrayPlugin extends obsidian.Plugin {
       if (mode === "week") start.setDate(start.getDate() - (start.getDay() + 6) % 7);
       if (mode === "month") start.setDate(1);
       completed = start.toDateString();
-      if (localStorage.getItem(key) === completed) return;
+      if (!force && localStorage.getItem(key) === completed) return;
     } else if (mode === "nth") {
       if (!Number.isSafeInteger(interval) || interval < 1) return;
-      const count = Number(localStorage.getItem(key)) + 1;
-      if (count < interval) {
-        localStorage.setItem(key, String(count));
-        return;
+      if (!force) {
+        const count = Number(localStorage.getItem(key)) + 1;
+        if (count < interval) {
+          localStorage.setItem(key, String(count));
+          return;
+        }
       }
       completed = "0";
     } else if (mode === "break") {

@@ -78,6 +78,16 @@ test("Nth unlock retries a missing note and starts the next cycle only after suc
   assert.deepEqual(calls, ["notice", "show", "left+", "right-", "fullscreen"]);
 });
 
+test("a forced unlock ignores the daily slot and the interval counter", async () => {
+  const { plugin, calls } = vault("day");
+  await plugin.handleUnlock(new Date("2026-12-31T08:00:00"));
+  assert.deepEqual(calls, ["show"], "the first unlock of the day opens the note");
+  await plugin.handleUnlock(new Date("2026-12-31T09:00:00"));
+  assert.deepEqual(calls, ["show"], "a second unlock of the same day is skipped");
+  await plugin.handleUnlock(new Date("2026-12-31T09:00:00"), undefined, true);
+  assert.deepEqual(calls, ["show", "show"], "a forced unlock opens the note anyway");
+});
+
 test("opens a not-yet-open note and applies the selected window treatment", async () => {
   for (const [display, effects] of [["window", ["maximize"]], ["fullscreen", ["left-", "right-", "fullscreen"]], ["normal", []]]) {
     const { plugin, calls } = vault("every", display);
