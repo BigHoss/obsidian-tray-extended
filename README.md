@@ -57,7 +57,7 @@ To test without locking your computer, run **Tray-Extended: Toggle unlock debug 
 | Unlock tab | Where the note opens |
 | --- | --- |
 | New tab (default) | Opens the note in a regular tab. |
-| Pinned tab | Opens the note in a tab pinned to the tab bar, so it stays there until you close it. |
+| Pinned tab | Opens the note in a tab pinned to the tab bar, so it stays there until you close it. A pinned tab that already shows the note is reused. |
 
 | Unlock screen | Which screen the window moves to |
 | --- | --- |

@@ -11,6 +11,7 @@ function vault(mode, display = "normal") {
   const leaf = { getRoot: () => rootSplit, view: { file }, openFile: async () => calls.push("open") };
   const workspace = { rootSplit, getLeavesOfType: () => [leaf], setActiveLeaf() {},
     getMostRecentLeaf: () => null, getLeaf: () => ({ openFile: async () => calls.push("open") }),
+    iterateAllLeaves: (cb) => cb(leaf),
     leftSplit: { collapse: () => calls.push("left-"), expand: () => calls.push("left+") },
     rightSplit: { collapse: () => calls.push("right-") } };
   const win = { isMinimized: () => false, isFullScreen: () => false, show: () => calls.push("show"),
@@ -97,6 +98,7 @@ test("the unlock note can open in a pinned tab", async () => {
   const { plugin, calls } = vault("every");
   plugin.settings.unlockTab = "pinned";
   plugin.app.workspace.getLeavesOfType = () => [];
+  plugin.app.workspace.iterateAllLeaves = () => {};
   plugin.app.workspace.getLeaf = () => ({
     openFile: async () => calls.push("open"),
     setPinned: (pinned) => calls.push(`pin${pinned}`),
@@ -115,6 +117,18 @@ test("the unlock note can move the window to another screen", async () => {
   const { plugin, calls } = vault("every");
   await plugin.handleUnlock();
   assert.deepEqual(calls, ["show"], "the window stays where it is by default");
+});
+
+test("a pinned tab that already shows the note is reused", async () => {
+  const { plugin, calls, file } = vault("every");
+  plugin.settings.unlockTab = "pinned";
+  const pinned = { getRoot: () => ({}), view: { file }, openFile: async () => calls.push("open"),
+    setPinned: (pinned) => calls.push(`pin${pinned}`) };
+  plugin.app.workspace.getLeavesOfType = () => [];
+  plugin.app.workspace.iterateAllLeaves = (cb) => cb(pinned);
+  plugin.app.workspace.setActiveLeaf = (leaf) => calls.push(leaf === pinned ? "activate-pinned" : "activate");
+  await plugin.handleUnlock();
+  assert.deepEqual(calls, ["activate-pinned", "pintrue", "show"], "the pinned tab is reused, not duplicated");
 });
 
 test("opens a not-yet-open note and applies the selected window treatment", async () => {

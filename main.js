@@ -183,10 +183,18 @@ const resolveUnlockFile = (vault, path) => {
     );
     return byStem.length === 1 ? byStem[0] : null;
   },
-  findLeafWithFile = (workspace, file) => {
-    // canvas notes live in their own view type
+  findLeafWithFile = (workspace, file, anywhere = false) => {
+    const showsFile = (leaf) => leaf.view?.file === file;
+    if (anywhere) {
+      // pinned tabs can sit outside the root split, so search every leaf
+      let found = null;
+      workspace.iterateAllLeaves((leaf) => {
+        if (!found && showsFile(leaf)) found = leaf;
+      });
+      return found;
+    }
     return [...workspace.getLeavesOfType("markdown"), ...workspace.getLeavesOfType("canvas")].find(
-      (leaf) => leaf.getRoot() === workspace.rootSplit && leaf.view.file === file
+      (leaf) => leaf.getRoot() === workspace.rootSplit && showsFile(leaf)
     );
   };
 
@@ -810,7 +818,7 @@ class TrayPlugin extends obsidian.Plugin {
     }
     this.openingUnlockNote = true;
     try {
-      const existing = findLeafWithFile(workspace, file);
+      const existing = findLeafWithFile(workspace, file, unlockTab === "pinned");
       let leaf = existing ?? workspace.getMostRecentLeaf(workspace.rootSplit);
       if (leaf) workspace.setActiveLeaf(leaf);
       if (!existing) {
