@@ -312,6 +312,7 @@ const app = {
   vault: {
     getName: () => "test-vault",
     getMarkdownFiles: () => [],
+    getFiles: () => [],
     getAbstractFileByPath: (path) =>
       path === "templates/quick.md" ? new obsidianStub.TFile() : null,
     read: async () => "# heading\n",

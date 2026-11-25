@@ -24,6 +24,8 @@ const LOG_PREFIX = "obsidian-tray",
   ACTION_CLOSE = "Close Vault",
   ACTION_APPLY_TEMPLATE = "Apply quick note template?",
   DEFAULT_DATE_FORMAT = "YYYY-MM-DD",
+  // file types Obsidian opens as a note: markdown and canvas
+  UNLOCK_EXTENSIONS = ["md", "canvas"],
   ACCELERATOR_FORMAT = `
     This hotkey is registered globally and will be detected even if Obsidian does
     not have keyboard focus. Format:
@@ -147,6 +149,42 @@ const showWindow = (params = {}) => {
   allowWindowClose = () => {
     getCurrentWindow().removeListener("close", onWindowClose);
     window.removeEventListener("beforeunload", onWindowUnload, true);
+  };
+
+const resolveUnlockFile = (vault, path) => {
+    const base = (vault.adapter?.getBasePath?.() ?? "").replace(/\\/g, "/");
+    let raw = String(path).trim().replace(/\\/g, "/");
+    // an absolute path from the file properties still resolves
+    if (base && raw.toLowerCase().startsWith(base.toLowerCase())) {
+      raw = raw.slice(base.length);
+    }
+    raw = raw.replace(/^\/+/, "");
+    const stem = raw.split("/").pop().replace(/\.[^/]+$/, "");
+    const candidates = [raw];
+    if (!/\.[^/]+$/.test(raw)) {
+      UNLOCK_EXTENSIONS.forEach((ext) => candidates.push(`${raw}.${ext}`));
+    }
+    for (const candidate of candidates) {
+      const file = vault.getAbstractFileByPath(obsidian.normalizePath(candidate));
+      if (file instanceof obsidian.TFile && UNLOCK_EXTENSIONS.includes(file.extension)) return file;
+    }
+    // fall back to a case-insensitive match on path or file name
+    const files = vault.getFiles();
+    const wanted = raw.toLowerCase();
+    const byPath = files.find((file) => file.path.toLowerCase() === wanted);
+    if (byPath && UNLOCK_EXTENSIONS.includes(byPath.extension)) return byPath;
+    const byStem = files.filter(
+      (file) =>
+        UNLOCK_EXTENSIONS.includes(file.extension) &&
+        file.name.replace(/\.[^.]+$/, "").toLowerCase() === stem.toLowerCase()
+    );
+    return byStem.length === 1 ? byStem[0] : null;
+  },
+  findLeafWithFile = (workspace, file) => {
+    // canvas notes live in their own view type
+    return [...workspace.getLeavesOfType("markdown"), ...workspace.getLeavesOfType("canvas")].find(
+      (leaf) => leaf.getRoot() === workspace.rootSplit && leaf.view.file === file
+    );
   };
 
 const hideTaskbarIcons = () => {
@@ -647,9 +685,10 @@ class SettingsTab extends obsidian.PluginSettingTab {
             if (opt.key === "quickNoteTemplate" || opt.key === "unlockNote") {
               const listId = `tray-extended-${opt.key}-files`,
                 list = setting.controlEl.createEl("datalist", { attr: { id: listId } });
-              plugin.app.vault
-                .getMarkdownFiles()
-                .forEach((file) => list.createEl("option", { value: file.path }));
+              const files = opt.key === "unlockNote"
+                ? plugin.app.vault.getFiles().filter((file) => UNLOCK_EXTENSIONS.includes(file.extension))
+                : plugin.app.vault.getMarkdownFiles();
+              files.forEach((file) => list.createEl("option", { value: file.path }));
               text.inputEl.setAttr("list", listId);
             }
           });
@@ -692,15 +731,14 @@ class TrayPlugin extends obsidian.Plugin {
       if (lockedAt == null || !Number.isSafeInteger(minutes) || minutes < 1 || now - lockedAt < minutes * 60000) return;
     } else if (mode !== "every") return;
 
-    const file = vault.getAbstractFileByPath(obsidian.normalizePath(path));
-    if (!(file instanceof obsidian.TFile) || file.extension !== "md") {
-      new obsidian.Notice(`Unlock note not found: ${path}`);
+    const file = resolveUnlockFile(vault, path);
+    if (!file) {
+      new obsidian.Notice(`Unlock note not found: ${path}. Pick a Markdown or canvas file from the list.`);
       return;
     }
     this.openingUnlockNote = true;
     try {
-      const existing = workspace.getLeavesOfType("markdown").find((leaf) =>
-        leaf.getRoot() === workspace.rootSplit && leaf.view.file === file);
+      const existing = findLeafWithFile(workspace, file);
       let leaf = existing ?? workspace.getMostRecentLeaf(workspace.rootSplit);
       if (leaf) workspace.setActiveLeaf(leaf);
       if (!existing) {
