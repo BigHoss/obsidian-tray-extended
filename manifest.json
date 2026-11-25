@@ -6,5 +6,5 @@
   "description": "Manage the system tray, window visibility, global hotkeys, and quick notes.",
   "version": "1.0.17",
   "isDesktopOnly": true,
-  "minAppVersion": "1.0.0"
+  "minAppVersion": "1.4.10"
 }

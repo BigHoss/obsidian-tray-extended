@@ -528,8 +528,9 @@ const OPTIONS = [
       <a href="https://github.com/SilentVoid13/Templater" target="_blank" rel="noopener">
       Templater</a> can process its expressions after the note is created.
     `,
-    type: "text",
+    type: "path",
     placeholder: "Example: templates/quick-note.md",
+    getItems: () => plugin.app.vault.getMarkdownFiles().map((file) => file.path),
   },
   {
     key: "quickNoteTemplateMode",
@@ -573,8 +574,13 @@ const OPTIONS = [
   {
     key: "unlockNote",
     desc: "Select an existing Markdown note in this vault.",
-    type: "text",
+    type: "path",
     placeholder: "Example: Planning/Morning.md",
+    getItems: () =>
+      plugin.app.vault
+        .getFiles()
+        .filter((file) => UNLOCK_EXTENSIONS.includes(file.extension))
+        .map((file) => file.path),
   },
   {
     key: "unlockDisplay",
@@ -596,6 +602,37 @@ const keyToLabel = (key) =>
     document
       .createRange()
       .createContextualFragment((html ?? "").replace(/\s+/g, " "));
+
+// native Obsidian dropdown: type-ahead popover anchored to the search input
+class PathSuggest extends obsidian.AbstractInputSuggest {
+  constructor(app, textInputEl, getItems) {
+    super(app, textInputEl);
+    this.getItems = getItems;
+    this.matches = new Map();
+    this.limit = 100;
+  }
+  getSuggestions(query) {
+    const items = this.getItems();
+    this.matches.clear();
+    if (!query) {
+      items.slice(0, this.limit).forEach((item) => this.matches.set(item, null));
+      return items.slice(0, this.limit);
+    }
+    const matcher = obsidian.prepareFuzzySearch(query);
+    return items
+      .map((item) => ({ item, result: matcher(item) }))
+      .filter((entry) => entry.result)
+      .sort((a, b) => b.result.score - a.result.score)
+      .slice(0, this.limit)
+      .map((entry) => {
+        this.matches.set(entry.item, entry.result.matches);
+        return entry.item;
+      });
+  }
+  renderSuggestion(value, el) {
+    obsidian.renderMatches(el, value, this.matches.get(value) ?? null);
+  }
+}
 
 class SettingsTab extends obsidian.PluginSettingTab {
   display() {
@@ -663,6 +700,16 @@ class SettingsTab extends obsidian.PluginSettingTab {
               .setValue(value)
               .onChange(onChange);
           });
+        } else if (opt.type === "path") {
+          setting.addSearch((search) => {
+            search.setPlaceholder(opt.placeholder).setValue(value);
+            const suggest = new PathSuggest(plugin.app, search.inputEl, opt.getItems);
+            suggest.onSelect((selected) => {
+              search.setValue(selected);
+              onChange(selected);
+            });
+            search.onChange(onChange);
+          });
         } else if (opt.type === "dropdown") {
           setting.addDropdown((dropdown) => {
             Object.entries(opt.options).forEach(([label, optionValue]) =>
@@ -682,15 +729,6 @@ class SettingsTab extends obsidian.PluginSettingTab {
               .setPlaceholder(opt.placeholder)
               .setValue(value)
               .onChange((value) => [onChange(value), updatePreview(value)]);
-            if (opt.key === "quickNoteTemplate" || opt.key === "unlockNote") {
-              const listId = `tray-extended-${opt.key}-files`,
-                list = setting.controlEl.createEl("datalist", { attr: { id: listId } });
-              const files = opt.key === "unlockNote"
-                ? plugin.app.vault.getFiles().filter((file) => UNLOCK_EXTENSIONS.includes(file.extension))
-                : plugin.app.vault.getMarkdownFiles();
-              files.forEach((file) => list.createEl("option", { value: file.path }));
-              text.inputEl.setAttr("list", listId);
-            }
           });
         }
       }
