@@ -18,6 +18,7 @@ function vault(mode, display = "normal") {
   const context = { module: {}, localStorage: { getItem: k => storage.get(k) ?? null, setItem: (k,v) => storage.set(k,v) },
     require: name => name === "electron" ? { remote: { getCurrentWindow: () => win } } : {
       Modal: class {}, PluginSettingTab: class {}, Plugin: class {}, TFile, normalizePath: p => p,
+      AbstractInputSuggest: class { constructor(app, textInputEl) { this.app = app; this.textInputEl = textInputEl; this.limit = 100; } onSelect(cb) { this.select = cb; return this; } },
       Notice: class { constructor() { calls.push("notice"); } } } };
   vm.runInNewContext(fs.readFileSync(require.resolve("../main.js"), "utf8"), context);
   const plugin = new context.module.exports();

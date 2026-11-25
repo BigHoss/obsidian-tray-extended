@@ -135,6 +135,26 @@ class FakeSetting {
     cb(text);
     return this;
   }
+  addSearch(cb) {
+    const search = {
+      value: "",
+      inputEl: new FakeEl(),
+      setPlaceholder() {
+        return this;
+      },
+      setValue(value) {
+        this.value = value;
+        return this;
+      },
+      onChange(cb) {
+        this.change = cb;
+        return this;
+      },
+    };
+    this.texts.push(search);
+    cb(search);
+    return this;
+  }
   addButton(cb) {
     const button = {
       text: "",
@@ -196,6 +216,17 @@ const obsidianStub = {
     constructor(app, plugin) {
       this.app = app;
       this.plugin = plugin;
+    }
+  },
+  AbstractInputSuggest: class {
+    constructor(app, textInputEl) {
+      this.app = app;
+      this.textInputEl = textInputEl;
+      this.limit = 100;
+    }
+    onSelect(cb) {
+      this.select = cb;
+      return this;
     }
   },
   Modal: class {
