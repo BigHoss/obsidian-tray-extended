@@ -39,6 +39,7 @@ Tray-Extended registers these URI handlers:
 | `obsidian://tray-extended/showWindow?ignoreStartupHide=false` | Ensures the vault window is visible but permits a pending startup hide to run. |
 | `obsidian://tray-extended/hideLeftSidebar` | Collapses the left workspace sidebar. Safe to call repeatedly. |
 | `obsidian://tray-extended/moveWindowToPrimaryDisplay` | Shows each vault window on the primary display. Normal windows retain their size when it fits, or are reduced to the primary work area; maximized windows remain maximized. |
+| `obsidian://tray-extended/moveWindowToCursorDisplay` | Shows each vault window on the display the pointer is on. |
 
 On Linux Wayland desktop environments, bind a system shortcut with
 `xdg-open obsidian://tray-extended/showWindow`.
@@ -57,6 +58,12 @@ To test without locking your computer, run **Tray-Extended: Toggle unlock debug 
 | --- | --- |
 | New tab (default) | Opens the note in a regular tab. |
 | Pinned tab | Opens the note in a tab pinned to the tab bar, so it stays there until you close it. |
+
+| Unlock screen | Which screen the window moves to |
+| --- | --- |
+| Stay on the current screen (default) | The window stays where it is. |
+| Move to the primary screen | The window moves to the primary display, keeping its size and maximized state. |
+| Move to the screen with the cursor | The window moves to the display the pointer is on. |
 
 | Unlock display | What happens when the note opens |
 | --- | --- |

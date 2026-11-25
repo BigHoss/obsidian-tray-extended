@@ -106,28 +106,31 @@ const showWindow = (params = {}) => {
     showWindows();
   },
   hideLeftSidebar = () => plugin.app.workspace.leftSplit.collapse(),
-  moveWindowToPrimaryDisplay = () => {
-    const { x, y, width: workAreaWidth, height: workAreaHeight } = screen
-      .getPrimaryDisplay()
-      .workArea;
-    getWindows().forEach((win) => {
-      const wasMaximized = win.isMaximized(),
-        wasMinimized = win.isMinimized(),
-        { width, height } = win.getBounds(),
-        nextWidth = Math.min(width, workAreaWidth),
-        nextHeight = Math.min(height, workAreaHeight);
-      if (wasMaximized) win.unmaximize();
-      if (wasMinimized) win.restore();
-      win.setBounds({
-        x: x + Math.round((workAreaWidth - nextWidth) / 2),
-        y: y + Math.round((workAreaHeight - nextHeight) / 2),
-        width: nextWidth,
-        height: nextHeight,
-      });
-      if (wasMaximized) win.maximize();
-      else win.show();
+  centerWindowInDisplay = (win, display) => {
+    const { x, y, width: workAreaWidth, height: workAreaHeight } = display.workArea,
+      wasMaximized = win.isMaximized(),
+      wasMinimized = win.isMinimized(),
+      { width, height } = win.getBounds(),
+      nextWidth = Math.min(width, workAreaWidth),
+      nextHeight = Math.min(height, workAreaHeight);
+    if (wasMaximized) win.unmaximize();
+    if (wasMinimized) win.restore();
+    win.setBounds({
+      x: x + Math.round((workAreaWidth - nextWidth) / 2),
+      y: y + Math.round((workAreaHeight - nextHeight) / 2),
+      width: nextWidth,
+      height: nextHeight,
     });
+    if (wasMaximized) win.maximize();
   },
+  moveWindowToDisplay = (display) =>
+    getWindows().forEach((win) => {
+      centerWindowInDisplay(win, display);
+      win.show();
+    }),
+  moveWindowToPrimaryDisplay = () => moveWindowToDisplay(screen.getPrimaryDisplay()),
+  moveWindowToCursorDisplay = () =>
+    moveWindowToDisplay(screen.getDisplayNearestPoint(screen.getCursorScreenPoint())),
   onSecondInstance = () => showWindows(),
   onWindowClose = (event) => event.preventDefault(),
   onWindowUnload = (event) => {
@@ -416,6 +419,10 @@ const registerUriHandlers = () => {
     "tray-extended/moveWindowToPrimaryDisplay",
     moveWindowToPrimaryDisplay
   );
+  plugin.registerObsidianProtocolHandler(
+    "tray-extended/moveWindowToCursorDisplay",
+    moveWindowToCursorDisplay
+  );
 };
 
 const OPTIONS = [
@@ -590,6 +597,17 @@ const OPTIONS = [
     default: "tab",
   },
   {
+    key: "unlockScreen",
+    desc: "Which screen the window moves to when the note opens.",
+    type: "dropdown",
+    options: {
+      "Stay on the current screen": "current",
+      "Move to the primary screen": "primary",
+      "Move to the screen with the cursor": "cursor",
+    },
+    default: "current",
+  },
+  {
     key: "unlockDisplay",
     desc: "How the vault window looks when the unlock note opens.",
     type: "dropdown",
@@ -759,7 +777,7 @@ class TrayPlugin extends obsidian.Plugin {
   }
 
   async handleUnlock(now = new Date(), lockedAt, force = false) {
-    const { unlockMode: mode, unlockInterval: interval, unlockNote: path, unlockDisplay, unlockTab } = this.settings;
+    const { unlockMode: mode, unlockInterval: interval, unlockNote: path, unlockDisplay, unlockTab, unlockScreen } = this.settings;
     if (mode === "off" || !path || this.openingUnlockNote) return;
     const { vault, workspace } = this.app;
     const key = `tray-extended:${vault.adapter.getBasePath()}:unlock:${mode}`;
@@ -803,6 +821,14 @@ class TrayPlugin extends obsidian.Plugin {
       const win = getCurrentWindow();
       startupHideCancelled = true;
       if (win.isMinimized()) win.restore();
+      if (unlockScreen === "primary" || unlockScreen === "cursor") {
+        centerWindowInDisplay(
+          win,
+          unlockScreen === "primary"
+            ? screen.getPrimaryDisplay()
+            : screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
+        );
+      }
       win.show();
       win.focus();
       if (unlockDisplay === "maximize-nosidebar") {

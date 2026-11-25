@@ -14,9 +14,14 @@ function vault(mode, display = "normal") {
     leftSplit: { collapse: () => calls.push("left-"), expand: () => calls.push("left+") },
     rightSplit: { collapse: () => calls.push("right-") } };
   const win = { isMinimized: () => false, isFullScreen: () => false, show: () => calls.push("show"),
-    focus() {}, maximize: () => calls.push("maximize"), setFullScreen: () => calls.push("fullscreen") };
+    focus() {}, maximize: () => calls.push("maximize"), setFullScreen: () => calls.push("fullscreen"),
+    isMaximized: () => false, unmaximize: () => {}, restore: () => {},
+    getBounds: () => ({ x: 0, y: 0, width: 800, height: 600 }), setBounds: () => calls.push("bounds") };
   const context = { module: {}, localStorage: { getItem: k => storage.get(k) ?? null, setItem: (k,v) => storage.set(k,v) },
-    require: name => name === "electron" ? { remote: { getCurrentWindow: () => win } } : {
+    require: name => name === "electron" ? { remote: { getCurrentWindow: () => win, screen: {
+      getPrimaryDisplay: () => ({ workArea: { x: 0, y: 0, width: 1920, height: 1080 } }),
+      getCursorScreenPoint: () => ({ x: 100, y: 100 }),
+      getDisplayNearestPoint: () => ({ workArea: { x: 1920, y: 0, width: 1280, height: 1024 } }) } } } : {
       Modal: class {}, PluginSettingTab: class {}, Plugin: class {}, TFile, normalizePath: p => p,
       AbstractInputSuggest: class { constructor(app, textInputEl) { this.app = app; this.textInputEl = textInputEl; this.limit = 100; } onSelect(cb) { this.select = cb; return this; } },
       Notice: class { constructor() { calls.push("notice"); } } } };
@@ -98,6 +103,18 @@ test("the unlock note can open in a pinned tab", async () => {
   });
   await plugin.handleUnlock();
   assert.deepEqual(calls, ["open", "pintrue", "show"]);
+});
+
+test("the unlock note can move the window to another screen", async () => {
+  for (const [target, bounds] of [["primary", 1], ["cursor", 1]]) {
+    const { plugin, calls } = vault("every");
+    plugin.settings.unlockScreen = target;
+    await plugin.handleUnlock();
+    assert.deepEqual(calls, ["bounds", "show"], `${target} moves the window before showing it`);
+  }
+  const { plugin, calls } = vault("every");
+  await plugin.handleUnlock();
+  assert.deepEqual(calls, ["show"], "the window stays where it is by default");
 });
 
 test("opens a not-yet-open note and applies the selected window treatment", async () => {
