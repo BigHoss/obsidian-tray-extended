@@ -105,7 +105,7 @@ test("the unlock note can open in a pinned tab", async () => {
     setPinned: (pinned) => calls.push(`pin${pinned}`),
   });
   await plugin.handleUnlock();
-  assert.deepEqual(calls, ["open", "pintrue", "activate", "show"]);
+  assert.deepEqual(calls, ["open", "pintrue", "show", "activate"]);
 });
 
 test("the unlock note can move the window to another screen", async () => {
@@ -129,7 +129,7 @@ test("a pinned tab that already shows the note is reused", async () => {
   plugin.app.workspace.iterateAllLeaves = (cb) => cb(pinned);
   plugin.app.workspace.setActiveLeaf = (leaf) => calls.push(leaf === pinned ? "activate-pinned" : "activate");
   await plugin.handleUnlock();
-  assert.deepEqual(calls, ["pintrue", "activate-pinned", "show"], "the pinned tab is reused, not duplicated");
+  assert.deepEqual(calls, ["pintrue", "show", "activate-pinned"], "the pinned tab is reused, not duplicated");
 });
 
 test("opens a not-yet-open note and applies the selected window treatment", async () => {

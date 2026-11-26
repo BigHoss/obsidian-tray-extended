@@ -825,8 +825,6 @@ class TrayPlugin extends obsidian.Plugin {
         await leaf.openFile(file, { active: true });
       }
       if (unlockTab === "pinned" && typeof leaf.setPinned === "function") leaf.setPinned(true);
-      // activate last: opening or pinning a leaf can change the active tab again
-      workspace.setActiveLeaf(leaf);
       const win = getCurrentWindow();
       startupHideCancelled = true;
       if (win.isMinimized()) win.restore();
@@ -858,6 +856,8 @@ class TrayPlugin extends obsidian.Plugin {
         workspace.rightSplit.collapse();
         win.setFullScreen(true);
       }
+      // activate last: opening, pinning, window focus and display switches can override the tab again
+      workspace.setActiveLeaf(leaf, { focus: true });
       if (completed !== undefined) localStorage.setItem(key, completed);
     } finally {
       this.openingUnlockNote = false;
