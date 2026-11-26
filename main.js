@@ -820,12 +820,13 @@ class TrayPlugin extends obsidian.Plugin {
     try {
       const existing = findLeafWithFile(workspace, file, unlockTab === "pinned");
       let leaf = existing ?? workspace.getMostRecentLeaf(workspace.rootSplit);
-      if (leaf) workspace.setActiveLeaf(leaf);
       if (!existing) {
         if (!leaf || leaf.view.getViewType() !== "empty") leaf = workspace.getLeaf("tab");
         await leaf.openFile(file, { active: true });
       }
       if (unlockTab === "pinned" && typeof leaf.setPinned === "function") leaf.setPinned(true);
+      // activate last: opening or pinning a leaf can change the active tab again
+      workspace.setActiveLeaf(leaf);
       const win = getCurrentWindow();
       startupHideCancelled = true;
       if (win.isMinimized()) win.restore();
